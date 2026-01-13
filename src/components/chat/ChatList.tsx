@@ -1,0 +1,1 @@
+// Virtualized chat list component
