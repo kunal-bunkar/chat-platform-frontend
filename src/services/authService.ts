@@ -20,7 +20,7 @@ export type LoginResponse = {
 };
 
 export async function login(email: string, password: string): Promise<LoginResponse> {
-  const res = await api.post<LoginResponse>("/api/auth/login", { email, password });
+  const res = await api.post<LoginResponse>("/auth/login", { email, password });
   return res.data;
 }
 
@@ -30,7 +30,18 @@ export type LogoutResponse = {
 };
 
 export async function logout(): Promise<LogoutResponse> {
-  const res = await api.post<LogoutResponse>("/api/auth/logout");
+  const res = await api.post<LogoutResponse>("/auth/logout");
+  return res.data;
+}
+
+export type RefreshTokenResponse = {
+  success: boolean;
+  token: string;
+  refreshToken?: string;
+};
+
+export async function refreshToken(refreshToken: string): Promise<RefreshTokenResponse> {
+  const res = await api.post<RefreshTokenResponse>("/auth/refresh-token", { refreshToken });
   return res.data;
 }
 
@@ -43,7 +54,7 @@ export type SignupEmailResponse = {
 };
 
 export async function signupRequestEmail(email: string): Promise<SignupEmailResponse> {
-  const res = await api.post<SignupEmailResponse>("/api/auth/signup/email", { email });
+  const res = await api.post<SignupEmailResponse>("/auth/signup/email", { email });
   return res.data;
 }
 
@@ -56,7 +67,7 @@ export type VerifyOtpResponse = {
 };
 
 export async function signupVerifyOtp(email: string, otp: string): Promise<VerifyOtpResponse> {
-  const res = await api.post<VerifyOtpResponse>("/api/auth/signup/verify-otp", { email, otp });
+  const res = await api.post<VerifyOtpResponse>("/auth/signup/verify-otp", { email, otp });
   return res.data;
 }
 
@@ -73,7 +84,7 @@ export async function signupSetPassword(
   tempToken: string,
   username: string
 ): Promise<SetPasswordResponse> {
-  const res = await api.post<SetPasswordResponse>("/api/auth/signup/set-password", {
+  const res = await api.post<SetPasswordResponse>("/auth/signup/set-password", {
     email,
     password,
     tempToken,
