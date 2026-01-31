@@ -92,3 +92,36 @@ export async function signupSetPassword(
   });
   return res.data;
 }
+
+// ---------- Password Reset Flow ----------
+
+export type ForgotPasswordResponse = {
+  success: boolean;
+  message: string;
+  resetSent: boolean;
+};
+
+export async function forgotPassword(email: string): Promise<ForgotPasswordResponse> {
+  const res = await api.post<ForgotPasswordResponse>("/auth/forgot-password", { email });
+  return res.data;
+}
+
+export type ResetPasswordResponse = {
+  success: boolean;
+  message: string;
+};
+
+export async function resetPassword(
+  email: string,
+  resetToken: string | null,
+  otp: string | null,
+  newPassword: string
+): Promise<ResetPasswordResponse> {
+  const res = await api.post<ResetPasswordResponse>("/auth/reset-password", {
+    email,
+    resetToken,
+    otp,
+    newPassword,
+  });
+  return res.data;
+}
