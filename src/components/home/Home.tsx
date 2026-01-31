@@ -64,7 +64,7 @@ function ChatApp() {
         </div>
 
         {/* Chat Area */}
-        <div className="flex-1">
+        <div className="flex-1 min-h-0">
           <ChatArea />
         </div>
       </div>

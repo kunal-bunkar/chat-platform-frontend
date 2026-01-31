@@ -45,6 +45,12 @@ api.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
+    // Don't intercept refresh token endpoint errors to prevent infinite loops
+    const isRefreshTokenEndpoint = originalRequest.url?.includes("/auth/refresh-token");
+    if (isRefreshTokenEndpoint) {
+      return Promise.reject(error);
+    }
+
     // If error is 401 and we haven't tried to refresh yet
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
@@ -81,6 +87,10 @@ api.interceptors.response.use(
         const response = await authService.refreshToken(refreshTokenValue);
         const { token: newAccessToken } = response;
 
+        if (!newAccessToken) {
+          throw new Error("No access token received from refresh");
+        }
+
         // Update stored tokens
         setTokens(newAccessToken, refreshTokenValue);
 
@@ -97,6 +107,7 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         // Refresh failed, clear storage and redirect
+        console.error("Token refresh failed:", refreshError);
         clearAuthStorage();
         processQueue(refreshError as AxiosError, null);
         isRefreshing = false;

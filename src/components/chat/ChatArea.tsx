@@ -2,12 +2,17 @@
 import { useSocket } from "../../hooks/useSocket";
 import { useAuth } from "../../hooks/useAuth";
 import { useState, useRef, useEffect } from "react";
+import { ChatInfoModal } from "./ChatInfoModal";
+import { API_BASE_URL } from "../../utils/constants";
+import { getAccessToken } from "../../utils/tokenManager";
 
 export function ChatArea() {
   const { currentChatId, messages, sendMessage, isConnected, chats } = useSocket();
   const { user } = useAuth();
   const [inputMessage, setInputMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [showChatInfo, setShowChatInfo] = useState(false);
+  const [otherUserOnline, setOtherUserOnline] = useState<boolean | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatMessages = currentChatId ? messages[currentChatId] || [] : [];
 
@@ -18,6 +23,38 @@ export function ChatArea() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMessages]);
+
+  // Fetch online status for private chats
+  useEffect(() => {
+    if (currentChatId && currentChat?.type === "private") {
+      fetchOtherUserStatus();
+    }
+  }, [currentChatId, currentChat?.type]);
+
+  const fetchOtherUserStatus = async () => {
+    if (!currentChatId || !currentChat || currentChat.type !== "private") return;
+
+    try {
+      const token = getAccessToken();
+      if (!token) return;
+
+      const response = await fetch(`${API_BASE_URL}/chats/${currentChatId}/members`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.members) {
+          const otherMember = data.members.find((m: any) => m.id !== user?.id);
+          setOtherUserOnline(otherMember?.isOnline ?? false);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching user status:", error);
+    }
+  };
 
   const handleSend = () => {
     if (inputMessage.trim() && currentChatId) {
@@ -55,9 +92,12 @@ export function ChatArea() {
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-white">
-      {/* Chat Header */}
-      <div className="p-4 border-b border-gray-200 bg-gray-50">
+    <div className="flex-1 flex flex-col bg-white h-full min-h-0">
+      {/* Chat Header - Clickable */}
+      <div 
+        className="flex-shrink-0 p-4 border-b border-gray-200 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
+        onClick={() => setShowChatInfo(true)}
+      >
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center font-semibold">
             {currentChat?.type === "group" ? (
@@ -68,17 +108,29 @@ export function ChatArea() {
               <span>{currentChat?.name.charAt(0).toUpperCase()}</span>
             )}
           </div>
-          <div>
+          <div className="flex-1">
             <h3 className="font-semibold text-gray-900">{currentChat?.name}</h3>
-            <p className="text-xs text-gray-500">
-              {currentChat?.type === "group" ? `${currentChat.members.length} members` : "Online"}
+            <p className="text-xs text-gray-500 flex items-center gap-1">
+              {currentChat?.type === "group" ? (
+                `${currentChat.members.length} members`
+              ) : (
+                <>
+                  {otherUserOnline !== null && (
+                    <>
+                      <span className={`w-2 h-2 rounded-full ${otherUserOnline ? "bg-green-500" : "bg-gray-400"}`}></span>
+                      {otherUserOnline ? "Online" : "Offline"}
+                    </>
+                  )}
+                  {otherUserOnline === null && "Loading..."}
+                </>
+              )}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+      {/* Messages Area - Scrollable */}
+      <div className="flex-1 overflow-y-auto p-4 bg-gray-50 min-h-0">
         {!isConnected && (
           <div className="text-center text-sm text-yellow-600 mb-4">
             Reconnecting...
@@ -126,8 +178,8 @@ export function ChatArea() {
         )}
       </div>
 
-      {/* Input Area */}
-      <div className="p-4 border-t border-gray-200 bg-white">
+      {/* Input Area - Fixed at Bottom */}
+      <div className="flex-shrink-0 p-4 border-t border-gray-200 bg-white">
         <div className="flex items-end gap-2">
           <textarea
             value={inputMessage}
@@ -149,6 +201,17 @@ export function ChatArea() {
           </button>
         </div>
       </div>
+
+      {/* Chat Info Modal */}
+      {currentChatId && currentChat && (
+        <ChatInfoModal
+          isOpen={showChatInfo}
+          onClose={() => setShowChatInfo(false)}
+          chatId={currentChatId}
+          chatType={currentChat.type}
+          chatName={currentChat.name}
+        />
+      )}
     </div>
   );
 }
