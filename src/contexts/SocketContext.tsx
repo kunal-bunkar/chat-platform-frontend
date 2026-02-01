@@ -10,6 +10,8 @@ export interface Message {
   senderId: string;
   content: string;
   messageType: string;
+  editedAt?: string | null;
+  isDeleted?: boolean;
   createdAt: string;
   sender: {
     id: string;
@@ -36,6 +38,8 @@ interface SocketContextValue {
   currentChatId: string | null;
   setCurrentChatId: (chatId: string | null) => void;
   sendMessage: (chatId: string, content: string) => void;
+  editMessage: (messageId: string, content: string) => void;
+  deleteMessage: (messageId: string) => void;
   joinChat: (chatId: string) => void;
   leaveChat: (chatId: string) => void;
   refreshChats: () => Promise<void>;
@@ -80,6 +84,11 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       setIsConnected(false);
     });
 
+    // Handle socket errors
+    newSocket.on("error", (error: { message: string }) => {
+      console.error("Socket error:", error);
+    });
+
     // Handle new messages
     newSocket.on("new_message", (data: { message: Message }) => {
       setMessages((prev) => {
@@ -104,6 +113,32 @@ export function SocketProvider({ children }: { children: ReactNode }) {
             : chat
         )
       );
+    });
+
+    // Handle message edited
+    newSocket.on("message_edited", (data: { message: Message }) => {
+      setMessages((prev) => {
+        const chatMessages = prev[data.message.chatId] || [];
+        return {
+          ...prev,
+          [data.message.chatId]: chatMessages.map((msg) =>
+            msg.id === data.message.id ? data.message : msg
+          ),
+        };
+      });
+    });
+
+    // Handle message deleted
+    newSocket.on("message_deleted", (data: { message: Message }) => {
+      setMessages((prev) => {
+        const chatMessages = prev[data.message.chatId] || [];
+        return {
+          ...prev,
+          [data.message.chatId]: chatMessages.map((msg) =>
+            msg.id === data.message.id ? data.message : msg
+          ),
+        };
+      });
     });
 
     setSocket(newSocket);
@@ -191,6 +226,33 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const editMessage = (messageId: string, content: string) => {
+    if (!socket || !isConnected) {
+      console.error("Socket not connected. Cannot edit message.");
+      return;
+    }
+    if (!content.trim()) {
+      console.error("Content is required to edit message.");
+      return;
+    }
+    console.log("Emitting edit_message:", { messageId, content: content.trim() });
+    socket.emit("edit_message", {
+      messageId,
+      content: content.trim(),
+    });
+  };
+
+  const deleteMessage = (messageId: string) => {
+    if (!socket || !isConnected) {
+      console.error("Socket not connected. Cannot delete message.");
+      return;
+    }
+    console.log("Emitting delete_message:", { messageId });
+    socket.emit("delete_message", {
+      messageId,
+    });
+  };
+
   const joinChat = (chatId: string) => {
     if (socket) {
       socket.emit("join_chat", { chatId });
@@ -213,6 +275,8 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         currentChatId,
         setCurrentChatId,
         sendMessage,
+        editMessage,
+        deleteMessage,
         joinChat,
         leaveChat,
         refreshChats,

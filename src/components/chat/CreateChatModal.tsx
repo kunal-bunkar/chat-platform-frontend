@@ -92,8 +92,8 @@ export function CreateChatModal({ isOpen, onClose, type }: CreateChatModalProps)
     }
 
     if (type === "group") {
-      if (selectedUsers.length === 0) {
-        alert("Please select at least one user for group chat");
+      if (selectedUsers.length < 2) {
+        alert("A group chat must have at least 2 other members (3 total including you)");
         return;
       }
       if (!groupName.trim()) {
@@ -186,18 +186,25 @@ export function CreateChatModal({ isOpen, onClose, type }: CreateChatModalProps)
         </h2>
 
         {type === "group" && (
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Group Name
-            </label>
-            <input
-              type="text"
-              placeholder="Enter group name..."
-              value={groupName}
-              onChange={(e) => setGroupName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
+          <>
+            <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-xs text-blue-700">
+                <strong>Note:</strong> A group chat requires at least 3 members (you + 2 others)
+              </p>
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Group Name
+              </label>
+              <input
+                type="text"
+                placeholder="Enter group name..."
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </>
         )}
 
         <div className="mb-4">
@@ -212,7 +219,16 @@ export function CreateChatModal({ isOpen, onClose, type }: CreateChatModalProps)
 
         {selectedUsers.length > 0 && (
           <div className="mb-4">
-            <p className="text-sm text-gray-600 mb-2">Selected ({selectedUsers.length}):</p>
+            <p className="text-sm text-gray-600 mb-2">
+              Selected ({selectedUsers.length} {selectedUsers.length === 1 ? "member" : "members"})
+              {type === "group" && (
+                <span className={`ml-2 text-xs ${selectedUsers.length < 2 ? "text-red-500" : "text-green-600"}`}>
+                  {selectedUsers.length < 2 
+                    ? `(Need ${2 - selectedUsers.length} more for group)` 
+                    : "(Ready to create)"}
+                </span>
+              )}
+            </p>
             <div className="flex flex-wrap gap-2">
               {selectedUsers.map((user) => (
                 <span
@@ -277,7 +293,7 @@ export function CreateChatModal({ isOpen, onClose, type }: CreateChatModalProps)
               isLoading || 
               (type === "personal" 
                 ? selectedUsers.length !== 1 
-                : selectedUsers.length === 0 || !groupName.trim())
+                : selectedUsers.length < 2 || !groupName.trim())
             }
             className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
           >

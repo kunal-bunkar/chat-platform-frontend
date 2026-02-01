@@ -7,12 +7,14 @@ import { API_BASE_URL } from "../../utils/constants";
 import { getAccessToken } from "../../utils/tokenManager";
 
 export function ChatArea() {
-  const { currentChatId, messages, sendMessage, isConnected, chats } = useSocket();
+  const { currentChatId, messages, sendMessage, editMessage, deleteMessage, isConnected, chats } = useSocket();
   const { user } = useAuth();
   const [inputMessage, setInputMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [showChatInfo, setShowChatInfo] = useState(false);
   const [otherUserOnline, setOtherUserOnline] = useState<boolean | null>(null);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatMessages = currentChatId ? messages[currentChatId] || [] : [];
 
@@ -58,15 +60,48 @@ export function ChatArea() {
 
   const handleSend = () => {
     if (inputMessage.trim() && currentChatId) {
-      sendMessage(currentChatId, inputMessage);
-      setInputMessage("");
+      if (editingMessageId) {
+        // Editing existing message
+        editMessage(editingMessageId, inputMessage.trim());
+        setEditingMessageId(null);
+        setInputMessage("");
+      } else {
+        // Sending new message
+        sendMessage(currentChatId, inputMessage);
+        setInputMessage("");
+      }
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+
+  const handleEdit = (messageId: string, currentContent: string) => {
+    setEditingMessageId(messageId);
+    setInputMessage(currentContent);
+    // Scroll to input area
+    setTimeout(() => {
+      const inputElement = document.querySelector('textarea[placeholder="Type a message..."]') as HTMLTextAreaElement;
+      inputElement?.focus();
+    }, 100);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingMessageId(null);
+    setInputMessage("");
+  };
+
+  const handleDelete = (messageId: string, e?: React.MouseEvent) => {
+    if (e) {
       e.preventDefault();
-      handleSend();
+      e.stopPropagation();
+    }
+    if (!isConnected) {
+      console.error("Socket not connected. Cannot delete message.");
+      alert("Connection lost. Please refresh the page.");
+      return;
+    }
+    if (window.confirm("Are you sure you want to delete this message?")) {
+      console.log("Deleting message:", messageId, "isConnected:", isConnected);
+      deleteMessage(messageId);
     }
   };
 
@@ -144,31 +179,85 @@ export function ChatArea() {
           <div className="space-y-4">
             {chatMessages.map((message) => {
               const isOwnMessage = message.senderId === user?.id;
+              const isHovered = hoveredMessageId === message.id;
+
               return (
                 <div
                   key={message.id}
-                  className={`flex ${isOwnMessage ? "justify-end" : "justify-start"}`}
+                  className={`flex ${isOwnMessage ? "justify-end" : "justify-start"} group`}
+                  onMouseEnter={() => setHoveredMessageId(message.id)}
+                  onMouseLeave={() => setHoveredMessageId(null)}
                 >
-                  <div
-                    className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${
-                      isOwnMessage
-                        ? "bg-blue-500 text-white rounded-br-sm"
-                        : "bg-white text-gray-900 rounded-bl-sm border border-gray-200"
-                    }`}
-                  >
-                    {!isOwnMessage && currentChat?.type === "group" && (
-                      <p className="text-xs font-semibold mb-1 opacity-75">
-                        {message.sender.username || message.sender.email}
-                      </p>
-                    )}
-                    <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
-                    <p
-                      className={`text-xs mt-1 ${
-                        isOwnMessage ? "text-blue-100" : "text-gray-500"
+                  <div className="relative">
+                    <div
+                      className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${
+                        message.isDeleted === true
+                          ? "bg-gray-200 text-gray-500 italic"
+                          : isOwnMessage
+                          ? "bg-blue-500 text-white rounded-br-sm"
+                          : "bg-white text-gray-900 rounded-bl-sm border border-gray-200"
                       }`}
                     >
-                      {formatTime(message.createdAt)}
-                    </p>
+                      {!isOwnMessage && currentChat?.type === "group" && message.isDeleted !== true && (
+                        <p className="text-xs font-semibold mb-1 opacity-75">
+                          {message.sender.username || message.sender.email}
+                        </p>
+                      )}
+                      <p className="text-sm whitespace-pre-wrap break-words">
+                        {message.isDeleted === true ? "This message was deleted" : message.content}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <p
+                          className={`text-xs ${
+                            isOwnMessage ? "text-blue-100" : "text-gray-500"
+                          }`}
+                        >
+                          {formatTime(message.createdAt)}
+                        </p>
+                        {message.editedAt && message.isDeleted !== true && (
+                          <span
+                            className={`text-xs ${
+                              isOwnMessage ? "text-blue-100" : "text-gray-500"
+                            }`}
+                          >
+                            (edited)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {/* Edit/Delete buttons - only show for own messages on hover */}
+                    {isOwnMessage && message.isDeleted !== true && isHovered && (
+                      <div className="absolute -top-8 right-0 flex items-center gap-1 bg-white rounded-lg shadow-lg border border-gray-200 p-1">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleEdit(message.id, message.content);
+                          }}
+                          className="p-1.5 rounded hover:bg-gray-100 transition-colors"
+                          title="Edit message"
+                        >
+                          <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleDelete(message.id, e);
+                          }}
+                          className="p-1.5 rounded hover:bg-gray-100 transition-colors"
+                          title="Delete message"
+                        >
+                          <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -180,12 +269,37 @@ export function ChatArea() {
 
       {/* Input Area - Fixed at Bottom */}
       <div className="flex-shrink-0 p-4 border-t border-gray-200 bg-white">
+        {editingMessageId && (
+          <div className="mb-2 flex items-center justify-between px-2">
+            <span className="text-xs text-gray-600 flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Editing message
+            </span>
+            <button
+              type="button"
+              onClick={handleCancelEdit}
+              className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded hover:bg-gray-100 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
         <div className="flex items-end gap-2">
           <textarea
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Type a message..."
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              } else if (e.key === "Escape" && editingMessageId) {
+                e.preventDefault();
+                handleCancelEdit();
+              }
+            }}
+            placeholder={editingMessageId ? "Edit your message..." : "Type a message..."}
             rows={1}
             className="flex-1 px-4 py-2 text-sm border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
             style={{ maxHeight: "120px" }}
@@ -194,10 +308,17 @@ export function ChatArea() {
             onClick={handleSend}
             disabled={!inputMessage.trim() || !isConnected}
             className="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            title={editingMessageId ? "Save changes" : "Send message"}
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-            </svg>
+            {editingMessageId ? (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              </svg>
+            )}
           </button>
         </div>
       </div>
