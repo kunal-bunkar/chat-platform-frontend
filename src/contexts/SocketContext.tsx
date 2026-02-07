@@ -2,7 +2,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { io, Socket } from "socket.io-client";
 import { getAccessToken } from "../utils/tokenManager";
-import { API_BASE_URL } from "../utils/constants";
+import { API_BASE_URL, SOCKET_URL } from "../utils/constants";
 
 export interface Message {
   id: string;
@@ -33,6 +33,8 @@ export interface Chat {
 interface SocketContextValue {
   socket: Socket | null;
   isConnected: boolean;
+  isLoadingChats: boolean;
+  isLoadingMessages: Record<string, boolean>; // chatId -> loading state
   messages: Record<string, Message[]>; // chatId -> messages
   chats: Chat[];
   currentChatId: string | null;
@@ -50,6 +52,8 @@ const SocketContext = createContext<SocketContextValue | undefined>(undefined);
 export function SocketProvider({ children }: { children: ReactNode }) {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [isLoadingChats, setIsLoadingChats] = useState(true);
+  const [isLoadingMessages, setIsLoadingMessages] = useState<Record<string, boolean>>({});
   const [messages, setMessages] = useState<Record<string, Message[]>>({});
   const [chats, setChats] = useState<Chat[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
@@ -61,8 +65,15 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const socketUrl = API_BASE_URL.replace("/api", "");
-    const newSocket = io(socketUrl, {
+    // Validate socket URL before connecting
+    if (!SOCKET_URL || SOCKET_URL.includes("undefined") || SOCKET_URL.includes("null")) {
+      console.error("Invalid Socket URL:", SOCKET_URL);
+      console.error("REACT_APP_API_URL:", process.env.REACT_APP_API_URL);
+      return;
+    }
+
+    console.log("Connecting to Socket.IO at:", SOCKET_URL);
+    const newSocket = io(SOCKET_URL, {
       auth: {
         token,
       },
@@ -151,8 +162,12 @@ export function SocketProvider({ children }: { children: ReactNode }) {
   // Load chats on mount and when socket connects
   const refreshChats = async () => {
     try {
+      setIsLoadingChats(true);
       const token = getAccessToken();
-      if (!token) return;
+      if (!token) {
+        setIsLoadingChats(false);
+        return;
+      }
 
       const response = await fetch(`${API_BASE_URL}/chats`, {
         headers: {
@@ -168,6 +183,8 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error("Error loading chats:", error);
+    } finally {
+      setIsLoadingChats(false);
     }
   };
 
@@ -183,8 +200,12 @@ export function SocketProvider({ children }: { children: ReactNode }) {
 
     const loadMessages = async () => {
       try {
+        setIsLoadingMessages((prev) => ({ ...prev, [currentChatId]: true }));
         const token = getAccessToken();
-        if (!token) return;
+        if (!token) {
+          setIsLoadingMessages((prev) => ({ ...prev, [currentChatId]: false }));
+          return;
+        }
 
         const response = await fetch(`${API_BASE_URL}/messages/chat/${currentChatId}`, {
           headers: {
@@ -203,6 +224,8 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         console.error("Error loading messages:", error);
+      } finally {
+        setIsLoadingMessages((prev) => ({ ...prev, [currentChatId]: false }));
       }
     };
 
@@ -270,6 +293,8 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       value={{
         socket,
         isConnected,
+        isLoadingChats,
+        isLoadingMessages,
         messages,
         chats,
         currentChatId,

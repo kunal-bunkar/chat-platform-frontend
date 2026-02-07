@@ -4,25 +4,42 @@
 
 /* Custom global styles */
 body {
-  @apply bg-slate-50 text-slate-900 antialiased;
+  @apply bg-[#f0f2f5] text-gray-900 antialiased;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
 }
 
 /* Custom scrollbar styles */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-gray-100;
+  @apply bg-transparent;
 }
 
 ::-webkit-scrollbar-thumb {
   @apply bg-gray-300 rounded-full;
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-gray-400;
+}
+
+/* Smooth scrolling */
+* {
+  scroll-behavior: smooth;
+}
+
+/* Selection color */
+::selection {
+  @apply bg-[#0088cc]/30;
+}
+
+/* Focus styles */
+*:focus-visible {
+  @apply outline-none ring-2 ring-[#0088cc] ring-offset-2;
 }
 
 @layer components {
@@ -31,7 +48,7 @@ body {
   }
 
   .card {
-    @apply bg-white/80 backdrop-blur border border-slate-200 rounded-2xl shadow-sm;
+    @apply bg-white/90 backdrop-blur-sm border border-gray-200 rounded-2xl shadow-lg;
   }
 
   .card-body {
@@ -39,35 +56,65 @@ body {
   }
 
   .input {
-    @apply w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-slate-900
-      placeholder:text-slate-400 outline-none shadow-sm
-      focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15;
+    @apply w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-gray-900
+      placeholder:text-gray-400 outline-none shadow-sm transition-all
+      focus:border-[#0088cc] focus:ring-2 focus:ring-[#0088cc];
   }
 
   .label {
-    @apply text-sm font-medium text-slate-700;
+    @apply text-sm font-medium text-gray-700;
   }
 
   .btn {
     @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold
-      shadow-sm transition-colors
-      focus:outline-none focus:ring-4 focus:ring-blue-500/15
+      shadow-sm transition-all duration-200
+      focus:outline-none focus:ring-2 focus:ring-[#0088cc] focus:ring-offset-2
       disabled:opacity-60 disabled:cursor-not-allowed;
   }
 
   .btn-primary {
-    @apply bg-blue-600 text-white hover:bg-blue-700;
+    @apply bg-gradient-to-r from-[#0088cc] to-[#00a8e8] text-white hover:from-[#0077b3] hover:to-[#0099cc] shadow-md;
   }
 
   .btn-ghost {
-    @apply bg-transparent text-slate-700 hover:bg-slate-100;
+    @apply bg-transparent text-gray-700 hover:bg-gray-100;
   }
 
   .btn-dark {
-    @apply bg-slate-900 text-white hover:bg-slate-950;
+    @apply bg-gray-900 text-white hover:bg-gray-950;
   }
 
   .pill {
-    @apply inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700;
+    @apply inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700;
+  }
+}
+
+/* Animation for message appearance */
+@keyframes messageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.message-enter {
+  animation: messageSlideIn 0.2s ease-out;
+}
+
+/* Responsive breakpoints */
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+  }
+}
+
+/* Print styles */
+@media print {
+  body {
+    @apply bg-white;
   }
 }
