@@ -5,7 +5,6 @@ import * as authService from "../services/authService";
 import {
   clearAuthStorage,
   getAccessToken,
-  getStoredUser,
   setStoredUser,
   setTokens,
   type StoredUser,
@@ -26,9 +25,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const token = getAccessToken();
-    const storedUser = getStoredUser();
-    if (token && storedUser) setUser(storedUser);
+    // Clear all tokens and user data on app startup
+    // This forces users to login again each time they open the app
+    clearAuthStorage();
+    setUser(null);
     setIsLoading(false);
   }, []);
 
