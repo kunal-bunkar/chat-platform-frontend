@@ -73,7 +73,7 @@ export function Signup() {
     setInfo(null);
     setIsSubmitting(true);
     try {
-      const res = await signupSetPassword(email, password, tempToken, username);
+      await signupSetPassword(email, password, tempToken, username);
       // After successful signup, immediately log the user in (same credentials)
       await login(email, password);
       navigate("/", { replace: true });

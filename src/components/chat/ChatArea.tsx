@@ -1,7 +1,7 @@
 // Chat area component
 import { useSocket } from "../../hooks/useSocket";
 import { useAuth } from "../../hooks/useAuth";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { ChatInfoModal } from "./ChatInfoModal";
 import { API_BASE_URL } from "../../utils/constants";
 import { getAccessToken } from "../../utils/tokenManager";
@@ -14,13 +14,12 @@ export function ChatArea({ onBack }: ChatAreaProps = {}) {
   const { currentChatId, messages, sendMessage, editMessage, deleteMessage, isConnected, chats, isLoadingMessages } = useSocket();
   const { user } = useAuth();
   const [inputMessage, setInputMessage] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
   const [showChatInfo, setShowChatInfo] = useState(false);
   const [otherUserOnline, setOtherUserOnline] = useState<boolean | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const chatMessages = currentChatId ? messages[currentChatId] || [] : [];
+  const chatMessages = useMemo(() => currentChatId ? messages[currentChatId] || [] : [], [currentChatId, messages]);
 
   const currentChat = currentChatId
     ? chats.find((c) => c.id === currentChatId)
@@ -30,14 +29,7 @@ export function ChatArea({ onBack }: ChatAreaProps = {}) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMessages]);
 
-  // Fetch online status for private chats
-  useEffect(() => {
-    if (currentChatId && currentChat?.type === "private") {
-      fetchOtherUserStatus();
-    }
-  }, [currentChatId, currentChat?.type]);
-
-  const fetchOtherUserStatus = async () => {
+  const fetchOtherUserStatus = useCallback(async () => {
     if (!currentChatId || !currentChat || currentChat.type !== "private") return;
 
     try {
@@ -60,7 +52,14 @@ export function ChatArea({ onBack }: ChatAreaProps = {}) {
     } catch (error) {
       console.error("Error fetching user status:", error);
     }
-  };
+  }, [currentChatId, currentChat, user?.id]);
+
+  // Fetch online status for private chats
+  useEffect(() => {
+    if (currentChatId && currentChat?.type === "private") {
+      fetchOtherUserStatus();
+    }
+  }, [currentChatId, currentChat?.type, fetchOtherUserStatus]);
 
   const handleSend = () => {
     if (inputMessage.trim() && currentChatId) {

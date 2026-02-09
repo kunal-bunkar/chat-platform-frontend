@@ -1,8 +1,6 @@
 // Chat sidebar component
 import { useSocket } from "../../hooks/useSocket";
-import { useAuth } from "../../hooks/useAuth";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 
 interface ChatSidebarProps {
   onSelectChat: (chatId: string) => void;

@@ -1,5 +1,5 @@
 // Chat info modal component - shows members for groups or status for private chats
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { API_BASE_URL } from "../../utils/constants";
 import { getAccessToken } from "../../utils/tokenManager";
@@ -25,13 +25,7 @@ export function ChatInfoModal({ isOpen, onClose, chatId, chatType, chatName }: C
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (isOpen && chatId) {
-      fetchMembers();
-    }
-  }, [isOpen, chatId]);
-
-  const fetchMembers = async () => {
+  const fetchMembers = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -60,14 +54,13 @@ export function ChatInfoModal({ isOpen, onClose, chatId, chatType, chatName }: C
     } finally {
       setLoading(false);
     }
-  };
+  }, [chatId]);
 
-  const formatLastSeen = (isOnline: boolean) => {
-    if (isOnline) {
-      return "Online";
+  useEffect(() => {
+    if (isOpen && chatId) {
+      fetchMembers();
     }
-    return "Offline";
-  };
+  }, [isOpen, chatId, fetchMembers]);
 
   if (!isOpen) return null;
 
